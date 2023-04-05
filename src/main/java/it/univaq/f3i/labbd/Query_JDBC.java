@@ -1,5 +1,6 @@
 package it.univaq.f3i.labbd;
 
+import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.JDBCType;
@@ -7,12 +8,15 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Types;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 /**
@@ -25,47 +29,48 @@ import java.util.stream.Collectors;
  * database
  */
 public class Query_JDBC {
-    
-    private Connection connection;
-    public static DateTimeFormatter db_date_fomatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-    
+
+    private final Connection connection;
+    public static final DateTimeFormatter db_date_fomatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private boolean supports_procedures;
+    private boolean supports_transactions;
+
     public Query_JDBC(Connection c) {
         this.connection = c;
+        this.supports_procedures = false;
+        this.supports_transactions = false;
+        try {
+            this.supports_procedures = connection.getMetaData().supportsStoredProcedures();
+            this.supports_transactions = connection.getMetaData().supportsTransactions();
+        } catch (SQLException ex) {
+            Logger.getLogger(Query_JDBC.class.getName()).log(Level.SEVERE, null, ex);
+        }
+
     }
-    
+
+    //INIT: analizza le caratteristiche della connessione
     public void analizza_database() throws ApplicationException {
-        
         try {
             DatabaseMetaData databaseMetaData = connection.getMetaData();
-            
             System.out.println("Nome DBMS: " + databaseMetaData.getDatabaseProductName());
             System.out.println("\tVersione: " + databaseMetaData.getDatabaseProductVersion());
             System.out.println("\tDriver: " + databaseMetaData.getDriverName());
             System.out.println("\t\tVersione: " + databaseMetaData.getDriverVersion());
-            System.out.println("\tNume utente: " + databaseMetaData.getUserName());
+            System.out.println("\tNome utente: " + databaseMetaData.getUserName());
             System.out.println("\tCaratteristiche: ");
-            System.out.println("\t\tOuter Joins: " + databaseMetaData.supportsOuterJoins());
-            System.out.println("\t\tGroup by: " + databaseMetaData.supportsGroupBy());
+            System.out.println("\t\tOUTER JOIN: " + databaseMetaData.supportsOuterJoins());
+            System.out.println("\t\tGROUP BY: " + databaseMetaData.supportsGroupBy());
+            System.out.println("\t\tORDER BY con espressioni: " + databaseMetaData.supportsExpressionsInOrderBy());
+            System.out.println("\t\tUNION: " + databaseMetaData.supportsUnion());
             System.out.println("\t\tSubqueries correlate: " + databaseMetaData.supportsCorrelatedSubqueries());
-            System.out.println("\t\tSubqueries in comparisons: " + databaseMetaData.supportsSubqueriesInComparisons());
-            System.out.println("\t\tSubqueries in exists: " + databaseMetaData.supportsSubqueriesInExists());
-            System.out.println("\t\tSubqueries in ins: " + databaseMetaData.supportsSubqueriesInIns());
-            System.out.println("\t\tUnion: " + databaseMetaData.supportsUnion());
+            System.out.println("\t\tSubqueries con confronti: " + databaseMetaData.supportsSubqueriesInComparisons());
+            System.out.println("\t\tSubqueries con EXITS: " + databaseMetaData.supportsSubqueriesInExists());
+            System.out.println("\t\tSubqueries con IN: " + databaseMetaData.supportsSubqueriesInIns());
             System.out.println("\t\tStored Procedures: " + databaseMetaData.supportsStoredProcedures());
-            System.out.println("\t\tTransazioni: " + databaseMetaData.supportsTransactions());            
-            System.out.println("\t\tOrder by expressions: " + databaseMetaData.supportsExpressionsInOrderBy());
+            System.out.println("\t\tTransazioni: " + databaseMetaData.supportsTransactions());
             System.out.println("\t\tGet generated keys: " + databaseMetaData.supportsGetGeneratedKeys());
-            
-            
-            
-            try ( ResultSet schemas = databaseMetaData.getSchemas()) {
-                while (schemas.next()) {
-                    System.out.println("\t" + schemas.getString("TABLE_SCHEM") + " - " + schemas.getString("TABLE_CATALOG"));
-                }
-            }
-            
-            System.out.println("Tabelle nel DB corrente: ");
-            
+
+            System.out.println("Struttura nel Database corrente: ");
             try ( ResultSet resultSet = databaseMetaData.getTables(null, null, null, new String[]{"TABLE"})) {
                 while (resultSet.next()) {
                     String tableName = resultSet.getString("TABLE_NAME");
@@ -73,37 +78,36 @@ public class Query_JDBC {
                     try ( ResultSet columns = databaseMetaData.getColumns(null, null, tableName, null)) {
                         while (columns.next()) {
                             String columnName = columns.getString("COLUMN_NAME");
-                            System.out.println("\t\t" + columnName + " " + JDBCType.valueOf(columns.getInt("DATA_TYPE")).getName() + "(" + columns.getString("COLUMN_SIZE") + ") " + ((columns.getString("IS_NULLABLE").equals("NO")) ? "NOT NULL" : "") + " " + ((columns.getString("IS_AUTOINCREMENT").equals("YES")) ? "AUTO_INCREMENT" : ""));
+                            System.out.print("\t\t" + columnName);
+                            System.out.print(" " + JDBCType.valueOf(columns.getInt("DATA_TYPE")).getName() + "(" + columns.getString("COLUMN_SIZE") + ")");
+                            System.out.print(" [" + columns.getString("TYPE_NAME") + "]");
+                            System.out.print((columns.getString("IS_NULLABLE").equals("NO")) ? " NOT NULL" : "");
+                            System.out.println((columns.getString("IS_AUTOINCREMENT").equals("YES")) ? " AUTO_INCREMENT" : "");
                         }
                     }
+                    //
                     try ( ResultSet primaryKeys = databaseMetaData.getPrimaryKeys(null, null, tableName)) {
                         List<String> pkNames = new ArrayList<>();
                         while (primaryKeys.next()) {
                             pkNames.add(primaryKeys.getString("COLUMN_NAME"));
                         }
-                        System.out.println("\t\tPRIMARY KEY (" + pkNames.stream().collect(Collectors.joining(",")) + ")");                        
+                        System.out.println("\t\tPRIMARY KEY (" + pkNames.stream().collect(Collectors.joining(",")) + ")");
+                    }
+                    //
+                    try ( ResultSet foreignKeys = databaseMetaData.getImportedKeys(null, null, tableName)) {
+                        while (foreignKeys.next()) {
+                            System.out.print("\t\tFOREIGN KEY " + foreignKeys.getString("FKTABLE_NAME") + "(" + foreignKeys.getString("FKCOLUMN_NAME") + ")");
+                            System.out.println(" REFERENCES " + foreignKeys.getString("PKTABLE_NAME") + "(" + foreignKeys.getString("PKCOLUMN_NAME") + ")");
+                        }
                     }
                 }
             }
-
-            /*
-            
-            
-            try ( ResultSet foreignKeys = databaseMetaData.getImportedKeys(null, null, "CUSTOMER_ADDRESS")) {
-            while (foreignKeys.next()) {
-            String pkTableName = foreignKeys.getString("PKTABLE_NAME");
-            String fkTableName = foreignKeys.getString("FKTABLE_NAME");
-            String pkColumnName = foreignKeys.getString("PKCOLUMN_NAME");
-            String fkColumnName = foreignKeys.getString("FKCOLUMN_NAME");
-            }
-            }
-             */
         } catch (SQLException ex) {
             throw new ApplicationException("Errore di lettura dei metadati", ex);
         }
     }
-    //INIT: esegue uno script SQL passato sotto forma di stringa. Usato per inizializzare il database
 
+    //INIT: esegue uno script SQL passato sotto forma di stringa. Usato per inizializzare il database
     public void esegui_script(String script_sql) throws ApplicationException {
         try {
             try ( Statement s = getConnection().createStatement()) {
@@ -223,11 +227,90 @@ public class Query_JDBC {
         }
     }
 
-    /**
-     * @return the connection
-     */
+    //ESEMPIO 5: chiamata a procedura con parametri IN e generazione di un ResultSet
+    public void formazione(int ID_squadra, int anno) throws ApplicationException {
+        System.out.println("FORMAZIONE " + anno + " SQUADRA " + ID_squadra + "-----------------------");
+        //precompiliamo la chiamata a procedura (con parametro)  
+        //notare la sintassi speciale da usare per le chiamate a procedura
+        if (supports_procedures) {
+            try ( CallableStatement s = getConnection().prepareCall("{call formazione(?,?)}")) {
+                //impostiamo i parametri della chiamata
+                s.setInt(1, ID_squadra);
+                s.setInt(2, anno);
+                //eseguiamo la chiamata
+                s.execute();
+                //leggiamo la tabella generata dalla chiamata
+                try ( ResultSet rs = s.getResultSet()) {
+                    while (rs.next()) {
+                        System.out.print(rs.getString(1));
+                        System.out.print("\t" + rs.getString(2));
+                        System.out.println("\t" + rs.getString(3));
+                    }
+                }
+            } catch (SQLException ex) {
+                throw new ApplicationException("Errore di esecuzione della query", ex);
+            }
+        } else {
+            System.out.println("** NON SUPPORTATO **");
+        }
+    }
+
+    //ESEMPIO 6: chimata a procedura con parametri IN e OUT 
+    public void squadra_appartenenza(int ID_giocatore, int anno) throws ApplicationException {
+        System.out.println("SQUADRA GIOCATORE " + ID_giocatore + " NEL " + anno + "--------------------");
+        //precompiliamo la chiamata a procedura (con parametri)     
+        if (supports_procedures) {
+            try ( CallableStatement s = getConnection().prepareCall("{call squadra_appartenenza(?,?,?)}")) {
+                //impostiamo i parametri IN della chiamata
+                s.setInt(1, ID_giocatore);
+                s.setInt(2, anno);
+                //registriamo i parametri OUT della chiamata (con tipo)
+                s.registerOutParameter(3, Types.VARCHAR);
+                //eseguiamo la chiamata
+                s.execute();
+                //leggiamo il valore del parametro OUT
+                System.out.println(s.getString(3));
+            } catch (SQLException ex) {
+                throw new ApplicationException("Errore di esecuzione della query", ex);
+            }
+        } else {
+            System.out.println("** NON SUPPORTATO **");
+        }
+    }
+
+    //ESEMPIO 7: chimata a funzione
+    public void controlla_partita(int ID_partita) throws ApplicationException {
+
+        System.out.println("CONTROLLO PARTITA " + ID_partita + "-----------------------------");
+        if (supports_procedures) {
+            //precompiliamo la chiamata a funzione
+            try ( CallableStatement s = getConnection().prepareCall("{?  = call controlla_partita(?)}")) {
+                //impostiamo i parametri della chiamata
+                s.setInt(2, ID_partita);
+                //registriamo il valore della funzione come fosse un parametro OUT della chiamata (con tipo)
+                s.registerOutParameter(1, Types.VARCHAR);
+                //eseguiamo la chiamata
+                s.execute();
+                //leggiamo il valore del parametro OUT
+                System.out.println(s.getString(1));
+            } catch (SQLException ex) {
+                throw new ApplicationException("Errore di esecuzione della query", ex);
+            }
+        } else {
+            System.out.println("** NON SUPPORTATO **");
+        }
+    }
+
     private Connection getConnection() {
         return connection;
     }
-    
+
+    public boolean supportsProcedures() {
+        return supports_procedures;
+    }
+
+    public boolean supportsTransactions() {
+        return supports_transactions;
+    }
+
 }
