@@ -1,4 +1,4 @@
-#  JDBC_Example_SQLite
+#  Java_JDBC_Example_SQLite
 > Accessing the servlerless relational database SQLite with Java and JDBC
  
 This example shows how to connect to a SQlite DBMS in Java using the JDBC libraries and drivers. This serverless database stores data in a single user-defined file, and its engine is completely embedded in your application, so it does not require a separate installation. The example shows how to submit different supported SQL statements to SQLite, with and without transaction support.
