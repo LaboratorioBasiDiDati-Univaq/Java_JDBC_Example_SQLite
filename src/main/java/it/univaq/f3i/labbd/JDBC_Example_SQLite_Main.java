@@ -19,13 +19,8 @@ public class JDBC_Example_SQLite_Main extends JDBC_Example {
      * @param args the command line arguments
      */
     public static void main(String[] args) {
-        boolean populate = false;
-        //populate = !(args.length>0 && args[0].equals("no"));
         JDBC_Example_SQLite_Main instance = new JDBC_Example_SQLite_Main();
-        instance.initDatabase();
-        if (populate) instance.populateDatabase();
-        instance.runQueries();
-        instance.runQueries_withinTransaction();
+        instance.run(false, true, true);
     }
 
 }

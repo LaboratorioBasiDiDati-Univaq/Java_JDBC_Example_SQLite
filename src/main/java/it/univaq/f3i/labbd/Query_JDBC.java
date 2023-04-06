@@ -2,8 +2,6 @@ package it.univaq.f3i.labbd;
 
 import java.sql.CallableStatement;
 import java.sql.Connection;
-import java.sql.DatabaseMetaData;
-import java.sql.JDBCType;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -11,27 +9,18 @@ import java.sql.Statement;
 import java.sql.Types;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.Date;
-import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 
 /**
  *
  * @author Giuseppe Della Penna
  *
- * Questo esempio lavora sul database "campionati" e richiede che esso sia
- * popolato con i dati e le procedure sviluppate a lezione, nonchè che sia
- * presente nel DBMS un utente specifico (vedi qui sotto) con accesso al
- * database
  */
 public class Query_JDBC {
 
     private final Connection connection;
-    public static final DateTimeFormatter db_date_fomatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private boolean supports_procedures;
     private boolean supports_transactions;
 
@@ -48,70 +37,11 @@ public class Query_JDBC {
 
     }
 
-    //INIT: analizza le caratteristiche della connessione
-    public void analizza_database() throws ApplicationException {
-        try {
-            DatabaseMetaData databaseMetaData = connection.getMetaData();
-            System.out.println("Nome DBMS: " + databaseMetaData.getDatabaseProductName());
-            System.out.println("\tVersione: " + databaseMetaData.getDatabaseProductVersion());
-            System.out.println("\tDriver: " + databaseMetaData.getDriverName());
-            System.out.println("\t\tVersione: " + databaseMetaData.getDriverVersion());
-            System.out.println("\tNome utente: " + databaseMetaData.getUserName());
-            System.out.println("\tCaratteristiche: ");
-            System.out.println("\t\tOUTER JOIN: " + databaseMetaData.supportsOuterJoins());
-            System.out.println("\t\tGROUP BY: " + databaseMetaData.supportsGroupBy());
-            System.out.println("\t\tORDER BY con espressioni: " + databaseMetaData.supportsExpressionsInOrderBy());
-            System.out.println("\t\tUNION: " + databaseMetaData.supportsUnion());
-            System.out.println("\t\tSubqueries correlate: " + databaseMetaData.supportsCorrelatedSubqueries());
-            System.out.println("\t\tSubqueries con confronti: " + databaseMetaData.supportsSubqueriesInComparisons());
-            System.out.println("\t\tSubqueries con EXITS: " + databaseMetaData.supportsSubqueriesInExists());
-            System.out.println("\t\tSubqueries con IN: " + databaseMetaData.supportsSubqueriesInIns());
-            System.out.println("\t\tStored Procedures: " + databaseMetaData.supportsStoredProcedures());
-            System.out.println("\t\tTransazioni: " + databaseMetaData.supportsTransactions());
-            System.out.println("\t\tGet generated keys: " + databaseMetaData.supportsGetGeneratedKeys());
-
-            System.out.println("Struttura nel Database corrente: ");
-            try ( ResultSet resultSet = databaseMetaData.getTables(null, null, null, new String[]{"TABLE"})) {
-                while (resultSet.next()) {
-                    String tableName = resultSet.getString("TABLE_NAME");
-                    System.out.println("\t" + tableName);
-                    try ( ResultSet columns = databaseMetaData.getColumns(null, null, tableName, null)) {
-                        while (columns.next()) {
-                            String columnName = columns.getString("COLUMN_NAME");
-                            System.out.print("\t\t" + columnName);
-                            System.out.print(" " + JDBCType.valueOf(columns.getInt("DATA_TYPE")).getName() + "(" + columns.getString("COLUMN_SIZE") + ")");
-                            System.out.print(" [" + columns.getString("TYPE_NAME") + "]");
-                            System.out.print((columns.getString("IS_NULLABLE").equals("NO")) ? " NOT NULL" : "");
-                            System.out.println((columns.getString("IS_AUTOINCREMENT").equals("YES")) ? " AUTO_INCREMENT" : "");
-                        }
-                    }
-                    //
-                    try ( ResultSet primaryKeys = databaseMetaData.getPrimaryKeys(null, null, tableName)) {
-                        List<String> pkNames = new ArrayList<>();
-                        while (primaryKeys.next()) {
-                            pkNames.add(primaryKeys.getString("COLUMN_NAME"));
-                        }
-                        System.out.println("\t\tPRIMARY KEY (" + pkNames.stream().collect(Collectors.joining(",")) + ")");
-                    }
-                    //
-                    try ( ResultSet foreignKeys = databaseMetaData.getImportedKeys(null, null, tableName)) {
-                        while (foreignKeys.next()) {
-                            System.out.print("\t\tFOREIGN KEY " + foreignKeys.getString("FKTABLE_NAME") + "(" + foreignKeys.getString("FKCOLUMN_NAME") + ")");
-                            System.out.println(" REFERENCES " + foreignKeys.getString("PKTABLE_NAME") + "(" + foreignKeys.getString("PKCOLUMN_NAME") + ")");
-                        }
-                    }
-                }
-            }
-        } catch (SQLException ex) {
-            throw new ApplicationException("Errore di lettura dei metadati", ex);
-        }
-    }
-
-    //INIT: esegue uno script SQL passato sotto forma di stringa. Usato per inizializzare il database
+    //esegue uno script SQL generico passato sotto forma di stringa
     public void esegui_script(String script_sql) throws ApplicationException {
         try {
             try ( Statement s = getConnection().createStatement()) {
-                s.executeUpdate(script_sql);
+                s.execute(script_sql);
             }
         } catch (SQLException ex) {
             throw new ApplicationException("Errore di esecuzione dello script SQL", ex);
