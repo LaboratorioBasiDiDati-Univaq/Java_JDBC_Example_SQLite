@@ -20,7 +20,7 @@ public class JDBC_Example_SQLite_Main extends JDBC_Example {
      */
     public static void main(String[] args) {
         JDBC_Example_SQLite_Main instance = new JDBC_Example_SQLite_Main();
-        instance.run(false, true, true);
+        instance.run(true, true, true);
     }
 
 }

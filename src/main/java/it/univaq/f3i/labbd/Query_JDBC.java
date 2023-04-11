@@ -22,30 +22,23 @@ public class Query_JDBC {
 
     private final Connection connection;
     private boolean supports_procedures;
+    private boolean supports_function_calls;
     private boolean supports_transactions;
 
     public Query_JDBC(Connection c) {
         this.connection = c;
+        //verifichiamo quali comandi supporta il DBMS corrente
         this.supports_procedures = false;
         this.supports_transactions = false;
+        this.supports_function_calls = false;
         try {
             this.supports_procedures = connection.getMetaData().supportsStoredProcedures();
+            this.supports_function_calls = supports_procedures && connection.getMetaData().supportsStoredFunctionsUsingCallSyntax();
             this.supports_transactions = connection.getMetaData().supportsTransactions();
         } catch (SQLException ex) {
             Logger.getLogger(Query_JDBC.class.getName()).log(Level.SEVERE, null, ex);
         }
 
-    }
-
-    //esegue uno script SQL generico passato sotto forma di stringa
-    public void esegui_script(String script_sql) throws ApplicationException {
-        try {
-            try ( Statement s = getConnection().createStatement()) {
-                s.execute(script_sql);
-            }
-        } catch (SQLException ex) {
-            throw new ApplicationException("Errore di esecuzione dello script SQL", ex);
-        }
     }
 
     //ESEMPIO 1: esecuzione diretta di query e lettura dei risultati
@@ -212,7 +205,7 @@ public class Query_JDBC {
     public void controlla_partita(int ID_partita) throws ApplicationException {
 
         System.out.println("CONTROLLO PARTITA " + ID_partita + "-----------------------------");
-        if (supports_procedures) {
+        if (supports_procedures && supports_function_calls) {
             //precompiliamo la chiamata a funzione
             try ( CallableStatement s = getConnection().prepareCall("{?  = call controlla_partita(?)}")) {
                 //impostiamo i parametri della chiamata

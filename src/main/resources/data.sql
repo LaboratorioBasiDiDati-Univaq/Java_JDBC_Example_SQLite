@@ -25,19 +25,19 @@ VALUES ("1234567890123456","Pinco","Arbitro");
 -- per essere sicuri delle chiavi da usare con le relazioni
 INSERT INTO `giocatore`
 (`ID`,`nome`,`cognome`,`dataNascita`,`luogoNascita`)
-VALUES (1,"Pallino1","Giocatore","2020-04-21","Roma");
+VALUES (1,"Pallino1","Giocatore","2020-04-21 00:00:00","Roma");
 
 INSERT INTO `giocatore`
 (`ID`,`nome`,`cognome`,`dataNascita`,`luogoNascita`)
-VALUES (2,"Pallino2","Giocatore","2020-04-22","Milano");
+VALUES (2,"Pallino2","Giocatore","2020-04-22 00:00:00","Milano");
 
 INSERT INTO `giocatore`
 (`ID`,`nome`,`cognome`,`dataNascita`,`luogoNascita`)
-VALUES (3,"Pallino3","Giocatore","2020-04-23","Palermo");
+VALUES (3,"Pallino3","Giocatore","2020-04-23 00:00:00","Palermo");
 
 INSERT INTO `giocatore`
 (`ID`,`nome`,`cognome`,`dataNascita`,`luogoNascita`)
-VALUES (4,"Solitario","Giocatore","2020-05-06","L'Aquila");
+VALUES (4,"Solitario","Giocatore","2020-05-06 00:00:00","L'Aquila");
 
 INSERT INTO `squadra`
 (`ID`,`nome`,`citta`)

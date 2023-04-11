@@ -1,20 +1,9 @@
 package it.univaq.f3i.labbd;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
-import java.sql.Connection;
-import java.sql.DatabaseMetaData;
-import java.sql.DriverManager;
-import java.sql.JDBCType;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  *
@@ -25,14 +14,15 @@ public class JDBC_Example {
     private final String password;
     private final String username;
     private final String connection_string;
-    private Connection connection;
-    private Query_JDBC query_interface;
+    private Query_JDBC query_module;
+    private Setup_JDBC setup_module;
+    private Connect_JDBC connection_module;
 
     public JDBC_Example(String connection_string, String username, String password) {
         this.password = password;
         this.username = username;
         this.connection_string = connection_string;
-        this.connection = null;
+        this.connection_module = new Connect_JDBC();
     }
 
     public JDBC_Example(String connection_string) {
@@ -55,125 +45,21 @@ public class JDBC_Example {
         }
     }
 
-    //connessione al database
     public void connect() throws ApplicationException {
-        System.out.println("APERTURA CONNESSIONE ***************************");
-        try {
-            //connessione al database 
-            if (username != null && password != null) {
-                this.connection = DriverManager.getConnection(connection_string, username, password);
-            } else {
-                this.connection = DriverManager.getConnection(connection_string);
-            }
-            query_interface = new Query_JDBC(this.connection);
-        } catch (SQLException ex) {
-            //Usiamo un'eccezione user-defined per trasportare e gestire più
-            //agevolmente tutte le eccezioni lagate all'uso del database
-            throw new ApplicationException("Errore di connessione", ex);
-        }
+        connection_module.connect(connection_string, username, password);
+        setup_module = new Setup_JDBC(connection_module.getConnection());
+        query_module = new Query_JDBC(connection_module.getConnection());
     }
 
-    //disconnessione dal database
     public void disconnect() throws ApplicationException {
-        if (connection != null) {
-            try {
-                System.out.println("CHIUSURA CONNESSIONE ***************************");
-                connection.close();
-            } catch (SQLException ex) {
-                throw new ApplicationException("Errore di disconnessione", ex);
-            }
-        }
-    }
-
-    //stampiamo le informazioni sul database corrente
-    public void infoDatabase() throws ApplicationException {
-        System.out.println("INFORMAZIONI SUL DATABASE **********************");
-        try {
-            DatabaseMetaData databaseMetaData = connection.getMetaData();
-            System.out.println("Nome DBMS: " + databaseMetaData.getDatabaseProductName());
-            System.out.println("\tVersione: " + databaseMetaData.getDatabaseProductVersion());
-            System.out.println("\tDriver: " + databaseMetaData.getDriverName());
-            System.out.println("\t\tVersione: " + databaseMetaData.getDriverVersion());
-            System.out.println("\tNome utente: " + databaseMetaData.getUserName());
-            System.out.println("\tCaratteristiche: ");
-            System.out.println("\t\tOUTER JOIN: " + databaseMetaData.supportsOuterJoins());
-            System.out.println("\t\tGROUP BY: " + databaseMetaData.supportsGroupBy());
-            System.out.println("\t\tORDER BY con espressioni: " + databaseMetaData.supportsExpressionsInOrderBy());
-            System.out.println("\t\tUNION: " + databaseMetaData.supportsUnion());
-            System.out.println("\t\tSubqueries correlate: " + databaseMetaData.supportsCorrelatedSubqueries());
-            System.out.println("\t\tSubqueries con confronti: " + databaseMetaData.supportsSubqueriesInComparisons());
-            System.out.println("\t\tSubqueries con EXITS: " + databaseMetaData.supportsSubqueriesInExists());
-            System.out.println("\t\tSubqueries con IN: " + databaseMetaData.supportsSubqueriesInIns());
-            System.out.println("\t\tStored Procedures: " + databaseMetaData.supportsStoredProcedures());
-            System.out.println("\t\tTransazioni: " + databaseMetaData.supportsTransactions());
-            System.out.println("\t\tGet generated keys: " + databaseMetaData.supportsGetGeneratedKeys());
-            //
-            System.out.println("Struttura nel Database corrente (" + connection.getSchema() + "): ");
-            try ( ResultSet resultSet = databaseMetaData.getTables(null, null, null, new String[]{"TABLE"})) {
-                while (resultSet.next()) {
-                    String tableName = resultSet.getString("TABLE_NAME");
-                    System.out.println("\t" + tableName);
-                    try ( ResultSet columns = databaseMetaData.getColumns(null, null, tableName, null)) {
-                        while (columns.next()) {
-                            String columnName = columns.getString("COLUMN_NAME");
-                            System.out.print("\t\t" + columnName);
-                            System.out.print(" " + JDBCType.valueOf(columns.getInt("DATA_TYPE")).getName() + "(" + columns.getString("COLUMN_SIZE") + ")");
-                            System.out.print(" [" + columns.getString("TYPE_NAME") + "]");
-                            System.out.print((columns.getString("IS_NULLABLE").equals("NO")) ? " NOT NULL" : "");
-                            System.out.println((columns.getString("IS_AUTOINCREMENT").equals("YES")) ? " AUTO_INCREMENT" : "");
-                        }
-                    }
-                    //
-                    try ( ResultSet primaryKeys = databaseMetaData.getPrimaryKeys(null, null, tableName)) {
-                        List<String> pkNames = new ArrayList<>();
-                        while (primaryKeys.next()) {
-                            pkNames.add(primaryKeys.getString("COLUMN_NAME"));
-                        }
-                        System.out.println("\t\tPRIMARY KEY (" + pkNames.stream().collect(Collectors.joining(",")) + ")");
-                    }
-                    //
-                    try ( ResultSet foreignKeys = databaseMetaData.getImportedKeys(null, null, tableName)) {
-                        while (foreignKeys.next()) {
-                            System.out.print("\t\tFOREIGN KEY " + foreignKeys.getString("FKTABLE_NAME") + "(" + foreignKeys.getString("FKCOLUMN_NAME") + ")");
-                            System.out.println(" REFERENCES " + foreignKeys.getString("PKTABLE_NAME") + "(" + foreignKeys.getString("PKCOLUMN_NAME") + ")");
-                        }
-                    }
-                }
-            }
-        } catch (SQLException ex) {
-            throw new ApplicationException("Errore di lettura dei metadati", ex);
-        }
-    }
-
-    //inizializziamo il database se non presente
-    public void initDatabase() throws ApplicationException {
-        try {
-            InputStream resource = getClass().getResourceAsStream("/structure.sql");
-            if (resource != null) {
-                System.out.println("CREAZIONE DATABASE *****************************");
-                query_interface.esegui_script(new String(resource.readAllBytes(), StandardCharsets.UTF_8));
-            }
-        } catch (IOException ex) {
-            throw new ApplicationException("Errore di lettura del file SQL", ex);
-        }
-    }
-
-    //svuotiamo e ripopoliamo il database
-    public void populateDatabase() throws ApplicationException {
-        try {
-            InputStream resource = getClass().getResourceAsStream("/data.sql");
-            if (resource != null) {
-                System.out.println("POPOLAMENTO DATABASE *****************************");
-                query_interface.esegui_script(new String(resource.readAllBytes(), StandardCharsets.UTF_8));
-            }
-        } catch (IOException ex) {
-            throw new ApplicationException("Errore di lettura del file SQL", ex);
-        }
+        connection_module.disconnect();
+        setup_module = null;
+        query_module = null;
     }
 
     //eseguiamo tutti i test in sequenza
     public void runQueries() throws ApplicationException {
-        System.out.println("\nTEST SENZA TRANSAZIONE--------------------------");
+        System.out.println("\n**** TEST SENZA TRANSAZIONE *************************");
         Calendar cal = Calendar.getInstance();
         try {
             //prepariamo una data appartenente al calendario 2020
@@ -184,13 +70,13 @@ public class JDBC_Example {
             //andrebbero gestiti in maniera opportuna!
             throw new ApplicationException("Errore interno", ex);
         }
-        query_interface.classifica_marcatori(2020);
-        query_interface.calendario_campionato(2020);
-        query_interface.inserisci_partita(cal.getTime(), 1, 1, 2, 1);
-        query_interface.aggiorna_partita(1, 5, 6);
-        query_interface.formazione(1, 2020);
-        query_interface.squadra_appartenenza(1, 2020);
-        query_interface.controlla_partita(1);
+        query_module.classifica_marcatori(2020);
+        query_module.calendario_campionato(2020);
+        query_module.inserisci_partita(cal.getTime(), 1, 1, 2, 1);
+        query_module.aggiorna_partita(1, 5, 6);
+        query_module.formazione(1, 2020);
+        query_module.squadra_appartenenza(1, 2020);
+        query_module.controlla_partita(1);
 
     }
 
@@ -198,7 +84,7 @@ public class JDBC_Example {
     //in questo modo, se un'operazione fallisce, potremo annullare gli effetti
     //di tutto il blocco
     public void runQueries_withinTransaction() throws ApplicationException {
-        System.out.println("\nTEST CON TRANSAZIONE----------------------------");
+        System.out.println("\n**** TEST CON TRANSAZIONE ***************************");
         Calendar cal = Calendar.getInstance();
         try {
             //prepariamo una data appartenente al calendario 2020
@@ -213,7 +99,7 @@ public class JDBC_Example {
         //in una transazione diversa. Disattiviamola...
         try {
             System.out.println("DISABILITAZIONE AUTOCOMMIT *********************");
-            this.connection.setAutoCommit(false);
+            connection_module.getConnection().setAutoCommit(false);
         } catch (SQLException ex) {
             //se l'autocommit non si può disattivare, solleviamo un'eccezione custom...
             throw new ApplicationException("Problemi di gestione della transazione", ex);
@@ -223,13 +109,13 @@ public class JDBC_Example {
             //a questo punto il database aprirà una transazione automatica
             //al primo statement che gli viene sottoposto, ma non ne eseguirà
             //il commit
-            query_interface.inserisci_partita(cal.getTime(), 1, 1, 2, 1);
+            query_module.inserisci_partita(cal.getTime(), 1, 1, 2, 1);
             //generiamo volontariamente un'eccezione
-            query_interface.inserisci_partita(cal.getTime(), 1, 1, 2, 1);
+            query_module.inserisci_partita(cal.getTime(), 1, 1, 2, 1);
             //ora, se tutto è andato bene, finalizziamo le modifiche
             System.out.println("COMMIT DELLE OPERAZIONI ****************************");
             try {
-                this.connection.commit();
+                connection_module.getConnection().commit();
             } catch (SQLException ex) {
                 //se il commit non va a buon fine, solleviamo un'eccezione...
                 throw new ApplicationException("Problemi di gestione della transazione", ex);
@@ -238,7 +124,7 @@ public class JDBC_Example {
             //qualcosa non è andato... cancelliamo tutte le modifiche effettuate fin qui
             try {
                 System.out.println("ROLLBACK DELLE OPERAZIONI **********************");
-                this.connection.rollback();
+                connection_module.getConnection().rollback();
                 //propaghiamo all'esterno l'eccezione dopo il rollback
                 throw ex;
             } catch (SQLException ex1) {
@@ -249,7 +135,7 @@ public class JDBC_Example {
             //alla fine rimettiamo sempre tutto a posto, riabilitando l'autocommit...
             try {
                 System.out.println("ABILITAZIONE AUTOCOMMIT ************************");
-                this.connection.setAutoCommit(true);
+                connection_module.getConnection().setAutoCommit(true);
             } catch (SQLException ex) {
                 throw new ApplicationException("Problemi di gestione della transazione", ex);
             }
@@ -264,12 +150,12 @@ public class JDBC_Example {
             //avere maggior controllo su come e dove viene chiusa
             connect();
             if (create) {
-                initDatabase();
+                setup_module.initDatabase();
             }
             if (populate) {
-                populateDatabase();
+                setup_module.populateDatabase();
             }
-            infoDatabase();
+            setup_module.infoDatabase();
             if (query) {
                 runQueries();
                 runQueries_withinTransaction();
