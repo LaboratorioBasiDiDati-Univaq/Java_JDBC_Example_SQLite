@@ -23,22 +23,18 @@ public class Query_JDBC {
     private final Connection connection;
     private boolean supports_procedures;
     private boolean supports_function_calls;
-    private boolean supports_transactions;
 
     public Query_JDBC(Connection c) {
         this.connection = c;
         //verifichiamo quali comandi supporta il DBMS corrente
-        this.supports_procedures = false;
-        this.supports_transactions = false;
-        this.supports_function_calls = false;
+        supports_procedures = false;
+        supports_function_calls = false;
         try {
-            this.supports_procedures = connection.getMetaData().supportsStoredProcedures();
-            this.supports_function_calls = supports_procedures && connection.getMetaData().supportsStoredFunctionsUsingCallSyntax();
-            this.supports_transactions = connection.getMetaData().supportsTransactions();
+            supports_procedures = connection.getMetaData().supportsStoredProcedures();
+            supports_function_calls = supports_procedures && connection.getMetaData().supportsStoredFunctionsUsingCallSyntax();
         } catch (SQLException ex) {
             Logger.getLogger(Query_JDBC.class.getName()).log(Level.SEVERE, null, ex);
         }
-
     }
 
     //ESEMPIO 1: esecuzione diretta di query e lettura dei risultati
@@ -46,7 +42,7 @@ public class Query_JDBC {
         System.out.println("CLASSIFICA MARCATORI " + anno + "-----------------------");
         //eseguiamo la query
         //notare che creiamo lo statement e il resultset in un try-with-resources
-        try ( Statement s = getConnection().createStatement(); //attenzione: in generale sarebbe meglio scrivere le stringhe di SQL
+        try ( Statement s = connection.createStatement(); //attenzione: in generale sarebbe meglio scrivere le stringhe di SQL
                 //sotto forma di costanti (ad esempio a livello classe) e riferirvisi 
                 //solo nel codice, per una migliore mantenibilità dei sorgenti
                   ResultSet rs = s.executeQuery("select g.cognome,g.nome, s.nome as squadra, count(*) as punti from\n"
@@ -79,7 +75,7 @@ public class Query_JDBC {
         //un oggetto-formattatore per le date
         DateFormat df = new SimpleDateFormat("dd/MM/yyyy");
         //precompiliamo la query            
-        try ( PreparedStatement s = getConnection().prepareStatement("select s1.nome as squadra1,s2.nome as squadra2,p.data\n"
+        try ( PreparedStatement s = connection.prepareStatement("select s1.nome as squadra1,s2.nome as squadra2,p.data\n"
                 + "from campionato c join partita p on (p.ID_campionato=c.ID) join squadra s1 on (p.ID_squadra_1 = s1.ID) join squadra s2 on (p.ID_squadra_2 = s2.ID)\n"
                 + "where c.anno=?\n"
                 + "order by p.data asc;")) {
@@ -107,7 +103,7 @@ public class Query_JDBC {
         System.out.println("INSERIMENTO PARTITA " + ID_squadra_1 + "-" + ID_squadra_2 + "---------------------------");
         //precompiliamo la query       
         //il parametro extra dice al driver dove trovare la chiave auto-generata del nuovo record
-        try ( PreparedStatement s = getConnection().prepareStatement("insert into partita(ID_campionato, data,ID_squadra_1,ID_squadra_2,ID_luogo) values(?,?,?,?,?)", new String[]{"ID"})) {
+        try ( PreparedStatement s = connection.prepareStatement("insert into partita(ID_campionato, data,ID_squadra_1,ID_squadra_2,ID_luogo) values(?,?,?,?,?)", new String[]{"ID"})) {
             //impostiamo i parametri della query
             s.setInt(1, ID_campionato);
             //la java.util.Date va convertita in java.sql.Timestamp (data+ora) o java.sql.Date (solo data)
@@ -136,7 +132,7 @@ public class Query_JDBC {
     public void aggiorna_partita(int ID_partita, int punti_squadra_1, int punti_squadra_2) throws ApplicationException {
         System.out.println("AGGIORNAMENTO PARTITA " + ID_partita + "-------------------------");
         //precompiliamo la query       
-        try ( PreparedStatement s = getConnection().prepareStatement("update partita set punti_squadra_1=?, punti_squadra_2=? where ID=?")) {
+        try ( PreparedStatement s = connection.prepareStatement("update partita set punti_squadra_1=?, punti_squadra_2=? where ID=?")) {
             //impostiamo i parametri della query
             s.setInt(1, punti_squadra_1);
             s.setInt(2, punti_squadra_2);
@@ -156,7 +152,7 @@ public class Query_JDBC {
         //precompiliamo la chiamata a procedura (con parametro)  
         //notare la sintassi speciale da usare per le chiamate a procedura
         if (supports_procedures) {
-            try ( CallableStatement s = getConnection().prepareCall("{call formazione(?,?)}")) {
+            try ( CallableStatement s = connection.prepareCall("{call formazione(?,?)}")) {
                 //impostiamo i parametri della chiamata
                 s.setInt(1, ID_squadra);
                 s.setInt(2, anno);
@@ -183,7 +179,7 @@ public class Query_JDBC {
         System.out.println("SQUADRA GIOCATORE " + ID_giocatore + " NEL " + anno + "--------------------");
         //precompiliamo la chiamata a procedura (con parametri)     
         if (supports_procedures) {
-            try ( CallableStatement s = getConnection().prepareCall("{call squadra_appartenenza(?,?,?)}")) {
+            try ( CallableStatement s = connection.prepareCall("{call squadra_appartenenza(?,?,?)}")) {
                 //impostiamo i parametri IN della chiamata
                 s.setInt(1, ID_giocatore);
                 s.setInt(2, anno);
@@ -207,7 +203,7 @@ public class Query_JDBC {
         System.out.println("CONTROLLO PARTITA " + ID_partita + "-----------------------------");
         if (supports_procedures && supports_function_calls) {
             //precompiliamo la chiamata a funzione
-            try ( CallableStatement s = getConnection().prepareCall("{?  = call controlla_partita(?)}")) {
+            try ( CallableStatement s = connection.prepareCall("{?  = call controlla_partita(?)}")) {
                 //impostiamo i parametri della chiamata
                 s.setInt(2, ID_partita);
                 //registriamo il valore della funzione come fosse un parametro OUT della chiamata (con tipo)
@@ -223,17 +219,4 @@ public class Query_JDBC {
             System.out.println("** NON SUPPORTATO **");
         }
     }
-
-    private Connection getConnection() {
-        return connection;
-    }
-
-    public boolean supportsProcedures() {
-        return supports_procedures;
-    }
-
-    public boolean supportsTransactions() {
-        return supports_transactions;
-    }
-
 }

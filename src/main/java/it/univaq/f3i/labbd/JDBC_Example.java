@@ -85,61 +85,65 @@ public class JDBC_Example {
     //di tutto il blocco
     public void runQueries_withinTransaction() throws ApplicationException {
         System.out.println("\n**** TEST CON TRANSAZIONE ***************************");
-        Calendar cal = Calendar.getInstance();
-        try {
-            //prepariamo una data appartenente al calendario 2020
-            SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm");
-            cal.setTime(sdf.parse("30/9/2020 16:15"));
-        } catch (ParseException ex) {
-            //log degli errori originabili dal parsing della data
-            //andrebbero gestiti in maniera opportuna!
-            throw new ApplicationException("Errore interno", ex);
-        }
-        //di default, JDBC usa la modalità autocommit che esegue OGNI STATEMENT
-        //in una transazione diversa. Disattiviamola...
-        try {
-            System.out.println("DISABILITAZIONE AUTOCOMMIT *********************");
-            connection_module.getConnection().setAutoCommit(false);
-        } catch (SQLException ex) {
-            //se l'autocommit non si può disattivare, solleviamo un'eccezione custom...
-            throw new ApplicationException("Problemi di gestione della transazione", ex);
-        }
-        //qui iniziamo ad operare sul database...
-        try {
-            //a questo punto il database aprirà una transazione automatica
-            //al primo statement che gli viene sottoposto, ma non ne eseguirà
-            //il commit
-            query_module.inserisci_partita(cal.getTime(), 1, 1, 2, 1);
-            //generiamo volontariamente un'eccezione
-            query_module.inserisci_partita(cal.getTime(), 1, 1, 2, 1);
-            //ora, se tutto è andato bene, finalizziamo le modifiche
-            System.out.println("COMMIT DELLE OPERAZIONI ****************************");
+        if (setup_module.supports_transactions()) {
+            Calendar cal = Calendar.getInstance();
             try {
-                connection_module.getConnection().commit();
+                //prepariamo una data appartenente al calendario 2020
+                SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm");
+                cal.setTime(sdf.parse("30/9/2020 16:15"));
+            } catch (ParseException ex) {
+                //log degli errori originabili dal parsing della data
+                //andrebbero gestiti in maniera opportuna!
+                throw new ApplicationException("Errore interno", ex);
+            }
+            //di default, JDBC usa la modalità autocommit che esegue OGNI STATEMENT
+            //in una transazione diversa. Disattiviamola...
+            try {
+                System.out.println("DISABILITAZIONE AUTOCOMMIT *********************");
+                connection_module.getConnection().setAutoCommit(false);
             } catch (SQLException ex) {
-                //se il commit non va a buon fine, solleviamo un'eccezione...
+                //se l'autocommit non si può disattivare, solleviamo un'eccezione custom...
                 throw new ApplicationException("Problemi di gestione della transazione", ex);
             }
-        } catch (ApplicationException ex) {
-            //qualcosa non è andato... cancelliamo tutte le modifiche effettuate fin qui
+            //qui iniziamo ad operare sul database...
             try {
-                System.out.println("ROLLBACK DELLE OPERAZIONI **********************");
-                connection_module.getConnection().rollback();
-                //propaghiamo all'esterno l'eccezione dopo il rollback
-                throw ex;
-            } catch (SQLException ex1) {
-                //log degli errori originabili dalla rollback
-                throw new ApplicationException("Problemi di rollback sulla connessione", ex);
-            }
-        } finally {
-            //alla fine rimettiamo sempre tutto a posto, riabilitando l'autocommit...
-            try {
-                System.out.println("ABILITAZIONE AUTOCOMMIT ************************");
-                connection_module.getConnection().setAutoCommit(true);
-            } catch (SQLException ex) {
-                throw new ApplicationException("Problemi di gestione della transazione", ex);
-            }
+                //a questo punto il database aprirà una transazione automatica
+                //al primo statement che gli viene sottoposto, ma non ne eseguirà
+                //il commit
+                query_module.inserisci_partita(cal.getTime(), 1, 1, 2, 1);
+                //generiamo volontariamente un'eccezione
+                query_module.inserisci_partita(cal.getTime(), 1, 1, 2, 1);
+                //ora, se tutto è andato bene, finalizziamo le modifiche
+                System.out.println("COMMIT DELLE OPERAZIONI ****************************");
+                try {
+                    connection_module.getConnection().commit();
+                } catch (SQLException ex) {
+                    //se il commit non va a buon fine, solleviamo un'eccezione...
+                    throw new ApplicationException("Problemi di gestione della transazione", ex);
+                }
+            } catch (ApplicationException ex) {
+                //qualcosa non è andato... cancelliamo tutte le modifiche effettuate fin qui
+                try {
+                    System.out.println("ROLLBACK DELLE OPERAZIONI **********************");
+                    connection_module.getConnection().rollback();
+                    //propaghiamo all'esterno l'eccezione dopo il rollback
+                    throw ex;
+                } catch (SQLException ex1) {
+                    //log degli errori originabili dalla rollback
+                    throw new ApplicationException("Problemi di rollback sulla connessione", ex);
+                }
+            } finally {
+                //alla fine rimettiamo sempre tutto a posto, riabilitando l'autocommit...
+                try {
+                    System.out.println("ABILITAZIONE AUTOCOMMIT ************************");
+                    connection_module.getConnection().setAutoCommit(true);
+                } catch (SQLException ex) {
+                    throw new ApplicationException("Problemi di gestione della transazione", ex);
+                }
 
+            }
+        } else {
+            System.out.println("** NON SUPPORTATO **");
         }
     }
 

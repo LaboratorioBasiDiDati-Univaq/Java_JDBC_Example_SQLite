@@ -1,5 +1,10 @@
+DELIMITER ;
+-- modifiche necessarie rispetto alla versione MySQL:
+-- AUTO_INCREMENT -> AUTOINCREMENT
+-- le PRIMARY KEY non possono essere UNSIGNED
+
 CREATE TABLE if not exists campionato (
-    ID INTEGER  PRIMARY KEY AUTOINCREMENT,
+    ID INTEGER PRIMARY KEY AUTOINCREMENT,
     nome VARCHAR(50) NOT NULL,
     anno SMALLINT UNSIGNED NOT NULL,
     CONSTRAINT campionato_distinto UNIQUE (nome , anno),
@@ -7,14 +12,14 @@ CREATE TABLE if not exists campionato (
 );
 
 CREATE TABLE if not exists squadra (
-    ID INTEGER  PRIMARY KEY AUTOINCREMENT,
+    ID INTEGER PRIMARY KEY AUTOINCREMENT,
     nome VARCHAR(50) NOT NULL,
     citta VARCHAR(100) NOT NULL,
     CONSTRAINT squadra_distinta UNIQUE (nome , citta)
 );
 
 CREATE TABLE if not exists giocatore (
-    ID INTEGER  PRIMARY KEY AUTOINCREMENT,
+    ID INTEGER PRIMARY KEY AUTOINCREMENT,
     nome VARCHAR(50) NOT NULL,
     cognome VARCHAR(50) NOT NULL,
     luogoNascita VARCHAR(100) NOT NULL,
@@ -29,21 +34,21 @@ CREATE TABLE if not exists arbitro (
 );
 
 CREATE TABLE if not exists luogo (
-    ID INTEGER  PRIMARY KEY AUTOINCREMENT,
+    ID INTEGER PRIMARY KEY AUTOINCREMENT,
     nome VARCHAR(50) NOT NULL,
     citta VARCHAR(100) NOT NULL,
     CONSTRAINT luogo_distinto UNIQUE (nome , citta)
 );
 
 CREATE TABLE if not exists partita (
-    ID INTEGER  PRIMARY KEY AUTOINCREMENT,
+    ID INTEGER PRIMARY KEY AUTOINCREMENT,
     `data` DATETIME NOT NULL,
-    ID_squadra_1 INTEGER UNSIGNED NOT NULL,
-    ID_squadra_2 INTEGER UNSIGNED NOT NULL,
+    ID_squadra_1 INTEGER NOT NULL,
+    ID_squadra_2 INTEGER NOT NULL,
     punti_squadra_1 SMALLINT UNSIGNED DEFAULT 0,
     punti_squadra_2 SMALLINT UNSIGNED DEFAULT 0,
-    ID_luogo INTEGER UNSIGNED NOT NULL,
-    ID_campionato INTEGER UNSIGNED NOT NULL,
+    ID_luogo INTEGER NOT NULL,
+    ID_campionato INTEGER NOT NULL,
     CONSTRAINT partita_distinta UNIQUE (`data` , ID_squadra_1 , ID_squadra_2 , ID_campionato),
     CONSTRAINT partita_squadra1 FOREIGN KEY (ID_squadra_1)
         REFERENCES squadra (ID)
@@ -62,8 +67,8 @@ CREATE TABLE if not exists partita (
 CREATE TABLE if not exists formazione (
     anno SMALLINT UNSIGNED NOT NULL,
     numero SMALLINT UNSIGNED NOT NULL,
-    ID_squadra INTEGER UNSIGNED NOT NULL,
-    ID_giocatore INTEGER UNSIGNED NOT NULL,
+    ID_squadra INTEGER NOT NULL,
+    ID_giocatore INTEGER NOT NULL,
     PRIMARY KEY (anno , ID_squadra , ID_giocatore),
     CONSTRAINT formazione_squadra FOREIGN KEY (ID_squadra)
         REFERENCES squadra (ID)
@@ -75,8 +80,8 @@ CREATE TABLE if not exists formazione (
 
 CREATE TABLE if not exists segna (
     minuto SMALLINT UNSIGNED NOT NULL,
-    ID_giocatore INTEGER UNSIGNED NOT NULL,
-    ID_partita INTEGER UNSIGNED NOT NULL,
+    ID_giocatore INTEGER NOT NULL,
+    ID_partita INTEGER NOT NULL,
     tipo char(3) NULL,
     PRIMARY KEY (minuto , ID_giocatore , ID_partita),
     CONSTRAINT segna_giocatore FOREIGN KEY (ID_giocatore)
@@ -88,7 +93,7 @@ CREATE TABLE if not exists segna (
 );
 
 CREATE TABLE if not exists direzione (
-    ID_partita INTEGER UNSIGNED NOT NULL,
+    ID_partita INTEGER NOT NULL,
     CF_arbitro CHAR(16) NOT NULL,
     PRIMARY KEY (ID_partita , CF_arbitro),
     CONSTRAINT direzione_partita FOREIGN KEY (ID_partita)

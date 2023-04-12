@@ -20,19 +20,79 @@ import java.util.stream.Collectors;
 public class Setup_JDBC {
 
     private final Connection connection;
+    private final DatabaseMetaData databaseMetaData;
+    private boolean supports_procedures;
+    private boolean supports_function_calls;
+    private boolean supports_transactions;
+    private final SQLScriptRunner_JDBC scriptRunner;
 
-    public Setup_JDBC(Connection c) {
+    public Setup_JDBC(Connection c) throws ApplicationException {
         this.connection = c;
+        this.supports_procedures = false;
+        this.supports_transactions = false;
+        this.supports_function_calls = false;
+        scriptRunner = new SQLScriptRunner_JDBC();
+        try {
+            databaseMetaData = connection.getMetaData();
+            supports_procedures = connection.getMetaData().supportsStoredProcedures();
+            supports_function_calls = supports_procedures && connection.getMetaData().supportsStoredFunctionsUsingCallSyntax();
+            supports_transactions = connection.getMetaData().supportsTransactions();
+        } catch (SQLException ex) {
+            throw new ApplicationException("Errore di lettura dei metadati della connessione", ex);
+        }
     }
 
-    //esegue uno script SQL generico passato sotto forma di stringa
+    public DatabaseMetaData getDatabaseMetaData() {
+        return databaseMetaData;
+    }
+
+    public boolean supports_procedures() {
+        return supports_procedures;
+    }
+
+    public boolean supports_function_calls() {
+        return supports_function_calls;
+    }
+
+    public boolean supports_transactions() {
+        return supports_transactions;
+    }
+
+    //esegue uno script SQL generico (ddl o dml) passato sotto forma di stringa
+    //per ragioni di performance e sicurezza, esegue l'intero script in una singola transazione
     public void esegui_script(String script_sql) throws ApplicationException {
+        boolean originalAutoCommit = true;
         try {
-            try ( Statement s = connection.createStatement()) {
-                s.execute(script_sql);
+            if (supports_transactions) {
+                originalAutoCommit = connection.getAutoCommit();
+                connection.setAutoCommit(false);
+            }
+            //
+            scriptRunner.runScript(connection, script_sql);
+            if (supports_transactions) {
+                connection.commit();
+                connection.setAutoCommit(originalAutoCommit);
             }
         } catch (SQLException ex) {
+            if (supports_transactions) {
+                try {
+                    connection.rollback();
+                    connection.setAutoCommit(originalAutoCommit);
+                } catch (SQLException ex1) {
+                    //
+                }
+            }
             throw new ApplicationException("Errore di esecuzione dello script SQL", ex);
+        } catch (ApplicationException ex) {
+            if (supports_transactions) {
+                try {
+                    connection.rollback();
+                    connection.setAutoCommit(originalAutoCommit);
+                } catch (SQLException ex1) {
+                    //
+                }
+            }
+            throw ex;
         }
     }
 
@@ -40,7 +100,6 @@ public class Setup_JDBC {
     public void infoDatabase() throws ApplicationException {
         System.out.println("\n**** INFORMAZIONI SUL DATABASE **********************");
         try {
-            DatabaseMetaData databaseMetaData = connection.getMetaData();
             System.out.println("Nome DBMS: " + databaseMetaData.getDatabaseProductName());
             System.out.println("\tVersione: " + databaseMetaData.getDatabaseProductVersion());
             System.out.println("\tDriver: " + databaseMetaData.getDriverName());
@@ -64,16 +123,16 @@ public class Setup_JDBC {
             System.out.println("\t\tSubqueries con EXITS: " + databaseMetaData.supportsSubqueriesInExists());
             System.out.println("\t\tSubqueries con IN: " + databaseMetaData.supportsSubqueriesInIns());
             System.out.println("\t\tStored Procedures: " + databaseMetaData.supportsStoredProcedures());
-            System.out.println("\t\tChiamata stored functions: " +  (databaseMetaData.supportsStoredProcedures() && databaseMetaData.supportsStoredFunctionsUsingCallSyntax()));
+            System.out.println("\t\tChiamata stored functions: " + (databaseMetaData.supportsStoredProcedures() && databaseMetaData.supportsStoredFunctionsUsingCallSyntax()));
             System.out.println("\t\tTransazioni: " + databaseMetaData.supportsTransactions());
             System.out.println("\t\tGet generated keys: " + databaseMetaData.supportsGetGeneratedKeys());
             //
-            System.out.println("Struttura nel Database corrente (" + connection.getSchema() + "): ");
+            System.out.println("Struttura nel Database corrente (" + connection.getCatalog() + "): ");
             try ( ResultSet resultSet = databaseMetaData.getTables(null, null, null, new String[]{"TABLE"})) {
                 while (resultSet.next()) {
                     String tableName = resultSet.getString("TABLE_NAME");
-                    System.out.println("\t" + tableName);
-                    try ( ResultSet columns = databaseMetaData.getColumns(null, null, tableName, null)) {
+                    System.out.println("\tTABLE " + tableName);
+                    try ( ResultSet columns = databaseMetaData.getColumns(connection.getCatalog(), null, tableName, null)) {
                         while (columns.next()) {
                             String columnName = columns.getString("COLUMN_NAME");
                             System.out.print("\t\t" + columnName);
@@ -84,7 +143,7 @@ public class Setup_JDBC {
                         }
                     }
                     //
-                    try ( ResultSet primaryKeys = databaseMetaData.getPrimaryKeys(null, null, tableName)) {
+                    try ( ResultSet primaryKeys = databaseMetaData.getPrimaryKeys(connection.getCatalog(), null, tableName)) {
                         List<String> pkNames = new ArrayList<>();
                         while (primaryKeys.next()) {
                             pkNames.add(primaryKeys.getString("COLUMN_NAME"));
@@ -92,11 +151,34 @@ public class Setup_JDBC {
                         System.out.println("\t\tPRIMARY KEY (" + pkNames.stream().collect(Collectors.joining(",")) + ")");
                     }
                     //
-                    try ( ResultSet foreignKeys = databaseMetaData.getImportedKeys(null, null, tableName)) {
+                    try ( ResultSet foreignKeys = databaseMetaData.getImportedKeys(connection.getCatalog(), null, tableName)) {
                         while (foreignKeys.next()) {
                             System.out.print("\t\tFOREIGN KEY " + foreignKeys.getString("FKTABLE_NAME") + "(" + foreignKeys.getString("FKCOLUMN_NAME") + ")");
-                            System.out.println(" REFERENCES " + foreignKeys.getString("PKTABLE_NAME") + "(" + foreignKeys.getString("PKCOLUMN_NAME") + ")");
+                            System.out.print(" REFERENCES " + foreignKeys.getString("PKTABLE_NAME") + "(" + foreignKeys.getString("PKCOLUMN_NAME") + ")");
+                            System.out.print(" ON UPDATE " + foreignKeys.getString("DELETE_RULE"));
+                            System.out.println(" ON UPDATE " + foreignKeys.getString("UPDATE_RULE"));
                         }
+                    }
+                }
+            }
+
+            try ( ResultSet views = databaseMetaData.getTables(connection.getCatalog(), null, null, new String[]{"VIEW"})) {
+                while (views.next()) {
+                    String viewName = views.getString("TABLE_NAME");
+                    System.out.println("\t VIEW" + viewName);
+                    try ( ResultSet columns = databaseMetaData.getColumns(null, null, viewName, null)) {
+                        while (columns.next()) {
+                            String columnName = columns.getString("COLUMN_NAME");
+                            System.out.print("\t\t" + columnName);
+                            System.out.println(" " + JDBCType.valueOf(columns.getInt("DATA_TYPE")).getName() + "(" + columns.getString("COLUMN_SIZE") + ")");
+                        }
+                    }
+                }
+            }
+            if (databaseMetaData.supportsStoredProcedures()) {
+                try ( ResultSet procedures = databaseMetaData.getProcedures(connection.getCatalog(), null, null)) {
+                    while (procedures.next()) {
+                        System.out.println("\tPROCEDURE " + procedures.getString("PROCEDURE_NAME"));
                     }
                 }
             }
@@ -105,7 +187,7 @@ public class Setup_JDBC {
         }
     }
 
-    //inizializziamo il database se non presente
+    //inizializziamo il database tramite gli script SQL forniti
     public void initDatabase() throws ApplicationException {
         try {
             InputStream resource = getClass().getResourceAsStream("/structure.sql");
@@ -113,8 +195,26 @@ public class Setup_JDBC {
                 System.out.println("\n**** CREAZIONE DATABASE *****************************");
                 esegui_script(new String(resource.readAllBytes(), StandardCharsets.UTF_8));
             }
-        } catch (IOException ex) {
-            throw new ApplicationException("Errore di lettura del file SQL", ex);
+            if (databaseMetaData.supportsStoredProcedures()) {
+                resource = getClass().getResourceAsStream("/procedures.sql");
+                if (resource != null) {
+                    System.out.println("\n**** DEFINIZIONE PROCEDURE E FUNZIONI ***************");
+                    esegui_script(new String(resource.readAllBytes(), StandardCharsets.UTF_8));
+                }
+            }
+            resource = getClass().getResourceAsStream("/triggers.sql");
+            if (resource != null) {
+                System.out.println("\n**** DEFINIZIONE TRIGGER ****************************");
+                esegui_script(new String(resource.readAllBytes(), StandardCharsets.UTF_8));
+            }
+
+            resource = getClass().getResourceAsStream("/views.sql");
+            if (resource != null) {
+                System.out.println("\n**** DEFINIZIONE VISTE ******************************");
+                esegui_script(new String(resource.readAllBytes(), StandardCharsets.UTF_8));
+            }
+        } catch (IOException | SQLException ex) {
+            throw new ApplicationException("Errore di esecuzione degli script di inizializzazione", ex);
         }
     }
 
@@ -127,7 +227,7 @@ public class Setup_JDBC {
                 esegui_script(new String(resource.readAllBytes(), StandardCharsets.UTF_8));
             }
         } catch (IOException ex) {
-            throw new ApplicationException("Errore di lettura del file SQL", ex);
+            throw new ApplicationException("Errore di esecuzione degli script di popolamento", ex);
         }
     }
 }
