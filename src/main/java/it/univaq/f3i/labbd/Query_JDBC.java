@@ -20,11 +20,16 @@ import java.util.logging.Logger;
  */
 public class Query_JDBC {
 
-    private final Connection connection;
+    private Connection connection;
     private boolean supports_procedures;
     private boolean supports_function_calls;
 
-    public Query_JDBC(Connection c) {
+    public Query_JDBC(Connection c) throws ApplicationException {
+        connect(c);
+    }
+
+    public final void connect(Connection c) throws ApplicationException {
+        disconnect();
         this.connection = c;
         //verifichiamo quali comandi supporta il DBMS corrente
         supports_procedures = false;
@@ -34,6 +39,22 @@ public class Query_JDBC {
             supports_function_calls = supports_procedures && connection.getMetaData().supportsStoredFunctionsUsingCallSyntax();
         } catch (SQLException ex) {
             Logger.getLogger(Query_JDBC.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+
+    public Connection getConnection() {
+        return this.connection;
+    }
+
+    public void disconnect() throws ApplicationException {
+        try {
+            if (this.connection != null && !this.connection.isClosed()) {
+                System.out.println("\n**** CHIUSURA CONNESSIONE (modulo query) ************");
+                this.connection.close();
+                this.connection = null;
+            }
+        } catch (SQLException ex) {
+            throw new ApplicationException("Errore di disconnessione", ex);
         }
     }
 

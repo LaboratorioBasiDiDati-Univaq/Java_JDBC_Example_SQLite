@@ -11,7 +11,9 @@ This is a *sample application* developed during the lectures of the  [**Laborato
 
 ## Installation
 
-This is a Maven-based project. Simply download the code and open it in any Maven-enabled IDE such as Netbeans or Eclipse. 
+This is a Maven-based project. Simply download the code and open it in any Maven-enabled IDE such as Netbeans or Eclipse. The application is able to create and
+populate/reset the database before running the example queries. The creation and population scripts are in the resources folder. The main application
+class contains three boolean switches that can be used to control this behaviour.
  
 ---
 

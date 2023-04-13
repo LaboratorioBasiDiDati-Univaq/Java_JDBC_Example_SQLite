@@ -11,18 +11,12 @@ import java.util.Calendar;
  */
 public class JDBC_Example {
 
-    private final String password;
-    private final String username;
-    private final String connection_string;
     private Query_JDBC query_module;
     private Setup_JDBC setup_module;
     private Connect_JDBC connection_module;
 
     public JDBC_Example(String connection_string, String username, String password) {
-        this.password = password;
-        this.username = username;
-        this.connection_string = connection_string;
-        this.connection_module = new Connect_JDBC();
+        this.connection_module = new Connect_JDBC(connection_string, username, password);
     }
 
     public JDBC_Example(String connection_string) {
@@ -33,26 +27,31 @@ public class JDBC_Example {
     //incapsulata in una ApplicationException
     protected void logException(ApplicationException e) {
         Throwable cause = e.getCause();
-        System.err.println("ERRORE: " + e.getMessage());
+        System.out.println("\nERRORE: " + e.getMessage());
         if (cause != null) {
             if (cause instanceof SQLException) {
-                System.err.println("* SQLState: " + ((SQLException) cause).getSQLState());
-                System.err.println("* Codice errore DBMS: " + ((SQLException) cause).getErrorCode());
-                System.err.println("* Messaggio errore DBMS: " + ((SQLException) cause).getMessage());
+                System.out.println("* SQLState: " + ((SQLException) cause).getSQLState());
+                System.out.println("* Codice errore DBMS: " + ((SQLException) cause).getErrorCode());
+                System.out.println("* Messaggio errore DBMS: " + ((SQLException) cause).getMessage());
             } else {
-                System.err.println("* Causa: " + cause.getMessage());
+                System.out.println("* Causa: " + cause.getMessage());
             }
         }
     }
 
     public void connect() throws ApplicationException {
-        connection_module.connect(connection_string, username, password);
+        //i due moduli condivideranno la connessione singleton generata dal connection_module
         setup_module = new Setup_JDBC(connection_module.getConnection());
         query_module = new Query_JDBC(connection_module.getConnection());
     }
 
     public void disconnect() throws ApplicationException {
         connection_module.disconnect();
+        //se usiamo una singola connessione prelevata dal connection_module
+        //le due disconnect che seguono sono inutili, ma le inseriamo per
+        //completezza e sicurezza
+        query_module.disconnect();
+        setup_module.disconnect();
         setup_module = null;
         query_module = null;
     }
@@ -100,7 +99,7 @@ public class JDBC_Example {
             //in una transazione diversa. Disattiviamola...
             try {
                 System.out.println("DISABILITAZIONE AUTOCOMMIT *********************");
-                connection_module.getConnection().setAutoCommit(false);
+                query_module.getConnection().setAutoCommit(false);
             } catch (SQLException ex) {
                 //se l'autocommit non si può disattivare, solleviamo un'eccezione custom...
                 throw new ApplicationException("Problemi di gestione della transazione", ex);
@@ -116,7 +115,7 @@ public class JDBC_Example {
                 //ora, se tutto è andato bene, finalizziamo le modifiche
                 System.out.println("COMMIT DELLE OPERAZIONI ****************************");
                 try {
-                    connection_module.getConnection().commit();
+                    query_module.getConnection().commit();
                 } catch (SQLException ex) {
                     //se il commit non va a buon fine, solleviamo un'eccezione...
                     throw new ApplicationException("Problemi di gestione della transazione", ex);
@@ -125,7 +124,7 @@ public class JDBC_Example {
                 //qualcosa non è andato... cancelliamo tutte le modifiche effettuate fin qui
                 try {
                     System.out.println("ROLLBACK DELLE OPERAZIONI **********************");
-                    connection_module.getConnection().rollback();
+                    query_module.getConnection().rollback();
                     //propaghiamo all'esterno l'eccezione dopo il rollback
                     throw ex;
                 } catch (SQLException ex1) {
@@ -136,7 +135,7 @@ public class JDBC_Example {
                 //alla fine rimettiamo sempre tutto a posto, riabilitando l'autocommit...
                 try {
                     System.out.println("ABILITAZIONE AUTOCOMMIT ************************");
-                    connection_module.getConnection().setAutoCommit(true);
+                    query_module.getConnection().setAutoCommit(true);
                 } catch (SQLException ex) {
                     throw new ApplicationException("Problemi di gestione della transazione", ex);
                 }

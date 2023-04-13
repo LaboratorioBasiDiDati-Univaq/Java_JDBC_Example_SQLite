@@ -8,7 +8,6 @@ import java.sql.DatabaseMetaData;
 import java.sql.JDBCType;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -19,19 +18,24 @@ import java.util.stream.Collectors;
  */
 public class Setup_JDBC {
 
-    private final Connection connection;
-    private final DatabaseMetaData databaseMetaData;
+    private Connection connection;
+    private DatabaseMetaData databaseMetaData;
     private boolean supports_procedures;
     private boolean supports_function_calls;
     private boolean supports_transactions;
     private final SQLScriptRunner_JDBC scriptRunner;
 
     public Setup_JDBC(Connection c) throws ApplicationException {
+        scriptRunner = new SQLScriptRunner_JDBC();
+        connect(c);
+    }
+
+    public final void connect(Connection c) throws ApplicationException {
+        disconnect();
         this.connection = c;
         this.supports_procedures = false;
         this.supports_transactions = false;
         this.supports_function_calls = false;
-        scriptRunner = new SQLScriptRunner_JDBC();
         try {
             databaseMetaData = connection.getMetaData();
             supports_procedures = connection.getMetaData().supportsStoredProcedures();
@@ -40,6 +44,10 @@ public class Setup_JDBC {
         } catch (SQLException ex) {
             throw new ApplicationException("Errore di lettura dei metadati della connessione", ex);
         }
+    }
+
+    public Connection getConnection() {
+        return this.connection;
     }
 
     public DatabaseMetaData getDatabaseMetaData() {
@@ -56,6 +64,18 @@ public class Setup_JDBC {
 
     public boolean supports_transactions() {
         return supports_transactions;
+    }
+
+    public void disconnect() throws ApplicationException {
+        try {
+            if (this.connection != null && !this.connection.isClosed()) {
+                System.out.println("\n**** CHIUSURA CONNESSIONE (modulo setup) ************");
+                this.connection.close();
+                this.connection = null;
+            }
+        } catch (SQLException ex) {
+            throw new ApplicationException("Errore di disconnessione", ex);
+        }
     }
 
     //esegue uno script SQL generico (ddl o dml) passato sotto forma di stringa

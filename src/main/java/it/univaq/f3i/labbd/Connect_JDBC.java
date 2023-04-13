@@ -11,17 +11,35 @@ import java.sql.SQLException;
 public class Connect_JDBC {
 
     private Connection connection;
+    private final String password;
+    private final String username;
+    private final String connection_string;
 
-    public Connect_JDBC() {
+    public Connect_JDBC(String connection_string, String username, String password) {
+        this.password = password;
+        this.username = username;
+        this.connection_string = connection_string;
+//
         this.connection = null;
     }
 
-    public Connection getConnection() {
+    //creiamo e restituiamo una singola connessione locale (singleton)
+    //(che potrà essere chiusa da questo modulo)
+    public Connection getConnection() throws ApplicationException {
+        if (connection == null) {
+            connection = connect();
+        }
         return connection;
     }
 
+    //questo metodo restituisce una nuova connessione a ogni chiamata
+    //(che andrà chiusa dal ricevente!)
+    public Connection newConnection() throws ApplicationException {
+        return connect();
+    }
+
     //connessione al database
-    public Connection connect(String connection_string, String username, String password) throws ApplicationException {
+    private Connection connect() throws ApplicationException {
         System.out.println("\n**** APERTURA CONNESSIONE ***************************");
         try {
             //connessione al database 
@@ -38,15 +56,15 @@ public class Connect_JDBC {
         }
     }
 
-    //disconnessione dal database
+    //disconnessione della connessione locale (singleton) se presente
     public void disconnect() throws ApplicationException {
-        if (this.connection != null) {
-            try {
-                System.out.println("\n**** CHIUSURA CONNESSIONE ***************************");
+        try {
+            if (this.connection != null && !this.connection.isClosed()) {
+                System.out.println("\n**** CHIUSURA CONNESSIONE (modulo connect) **********");
                 this.connection.close();
-            } catch (SQLException ex) {
-                throw new ApplicationException("Errore di disconnessione", ex);
             }
+        } catch (SQLException ex) {
+            throw new ApplicationException("Errore di disconnessione", ex);
         }
     }
 }
