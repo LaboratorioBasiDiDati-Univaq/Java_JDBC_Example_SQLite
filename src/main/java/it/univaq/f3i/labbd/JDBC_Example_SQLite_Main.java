@@ -9,10 +9,11 @@ package it.univaq.f3i.labbd;
  * presente nel DBMS un utente specifico (vedi qui sotto) con accesso al
  * database.
  *
- * Il codice è può ricreare il database e popolarlo, ma in questo caso è
- * necessario che l'utente con cui si accede abbia i privilegi globali SUPER
- * (per creare le funzioni) nonchè quelli di creazione tabelle, procedure e
- * foreign key sul datbase campionati
+ * Il codice è può ricreare il database e popolarlo. Trattandosi di un database
+ * SQLite, questo verrà creato come file nella working directory 
+ * dell'applicazione. Basterà cancellare questo file per ripartire da un
+ * ambiente "pulito".
+ * 
  */
 public class JDBC_Example_SQLite_Main extends JDBC_Example {
 

@@ -1,4 +1,5 @@
--- svuotiamo le tabelle
+DELIMITER ;
+
 DELETE FROM partita;
 DELETE FROM formazione;
 DELETE FROM direzione;
@@ -10,19 +11,15 @@ DELETE FROM arbitro;
 DELETE FROM luogo;
 
 INSERT INTO `campionato` 
--- dobbiamo specificare tutti i campi, nell'ordine di creazione
 VALUES(1,"campionato di calcio serie A",2020);
 
--- possiamo omettere i campi auto_increment o quelli con default
 INSERT INTO `campionato`(anno,nome) 
 VALUES(2020,"campionato di calcio serie B");
 
 INSERT INTO `arbitro`
-(`CF`,`nome`,`cognome`)
-VALUES ("1234567890123456","Pinco","Arbitro");
+(`ID`,`nome`,`cognome`)
+VALUES (1,"Pinco","Arbitro");
 
--- di seguito inseriremo sempre esplicitamente tutte chiavi
--- per essere sicuri delle chiavi da usare con le relazioni
 INSERT INTO `giocatore`
 (`ID`,`nome`,`cognome`,`dataNascita`,`luogoNascita`)
 VALUES (1,"Pallino1","Giocatore","2020-04-21","Roma");
@@ -87,7 +84,6 @@ INSERT INTO `partita`
 (`ID`,`data`,`ID_campionato`,`ID_luogo`,`ID_squadra_1`,`ID_squadra_2`,`punti_squadra_1`,`punti_squadra_2`)
 VALUES (1,"2020-09-24 16:30:00",1,1,1,2,2,1);
 
--- omettiamo i punti, quindi il risultato sarà impostato su 0-0
 INSERT INTO `partita`
 (`ID`,`data`,`ID_campionato`,`ID_luogo`,`ID_squadra_1`,`ID_squadra_2`)
 VALUES (2,"2020-09-22 12:00:00",1,1,2,1);
@@ -116,11 +112,10 @@ INSERT INTO `segna`
 (`ID_giocatore`,`ID_partita`,`minuto`)
 VALUES (2,3,28);
 
+INSERT INTO `direzione`
+(`ID_arbitro`,`ID_partita`)
+VALUES (1,1);
 
 INSERT INTO `direzione`
-(`CF_arbitro`,`ID_partita`)
-VALUES ("1234567890123456",1);
-
-INSERT INTO `direzione`
-(`CF_arbitro`,`ID_partita`)
-VALUES ("1234567890123456",2);
+(`ID_arbitro`,`ID_partita`)
+VALUES (1,2);

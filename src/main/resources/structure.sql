@@ -1,25 +1,25 @@
 DELIMITER ;
 -- modifiche necessarie rispetto alla versione MySQL:
--- AUTO_INCREMENT -> AUTOINCREMENT
+-- AUTO_INCREMENT -> AUTOINCREMENT (rigorisamente dopo PRIMARY KEY)
 -- le PRIMARY KEY non possono essere UNSIGNED
 
-CREATE TABLE if not exists campionato (
-    ID INTEGER PRIMARY KEY AUTOINCREMENT,
+CREATE TABLE IF NOT EXISTS campionato (
+    ID INTEGER  PRIMARY KEY AUTOINCREMENT,
     nome VARCHAR(50) NOT NULL,
     anno SMALLINT UNSIGNED NOT NULL,
     CONSTRAINT campionato_distinto UNIQUE (nome , anno),
-    constraint controllo_anno CHECK(anno>1900 and anno<2500)
+    CONSTRAINT controllo_anno CHECK (anno > 1900 AND anno < 2500)
 );
 
-CREATE TABLE if not exists squadra (
-    ID INTEGER PRIMARY KEY AUTOINCREMENT,
+CREATE TABLE IF NOT EXISTS squadra (
+    ID INTEGER  PRIMARY KEY AUTOINCREMENT,
     nome VARCHAR(50) NOT NULL,
     citta VARCHAR(100) NOT NULL,
     CONSTRAINT squadra_distinta UNIQUE (nome , citta)
 );
 
-CREATE TABLE if not exists giocatore (
-    ID INTEGER PRIMARY KEY AUTOINCREMENT,
+CREATE TABLE IF NOT EXISTS giocatore (
+    ID INTEGER  PRIMARY KEY AUTOINCREMENT,
     nome VARCHAR(50) NOT NULL,
     cognome VARCHAR(50) NOT NULL,
     luogoNascita VARCHAR(100) NOT NULL,
@@ -27,21 +27,21 @@ CREATE TABLE if not exists giocatore (
     CONSTRAINT giocatore_distinto UNIQUE (nome , cognome , dataNascita , luogoNascita)
 );
 
-CREATE TABLE if not exists arbitro (
-    CF CHAR(16) PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS arbitro (
+    ID INTEGER  PRIMARY KEY AUTOINCREMENT,
     nome VARCHAR(50) NOT NULL,
     cognome VARCHAR(50) NOT NULL
 );
 
-CREATE TABLE if not exists luogo (
-    ID INTEGER PRIMARY KEY AUTOINCREMENT,
+CREATE TABLE IF NOT EXISTS luogo (
+    ID INTEGER  PRIMARY KEY AUTOINCREMENT,
     nome VARCHAR(50) NOT NULL,
     citta VARCHAR(100) NOT NULL,
     CONSTRAINT luogo_distinto UNIQUE (nome , citta)
 );
 
-CREATE TABLE if not exists partita (
-    ID INTEGER PRIMARY KEY AUTOINCREMENT,
+CREATE TABLE IF NOT EXISTS partita (
+    ID INTEGER  PRIMARY KEY AUTOINCREMENT,
     `data` DATETIME NOT NULL,
     ID_squadra_1 INTEGER NOT NULL,
     ID_squadra_2 INTEGER NOT NULL,
@@ -61,10 +61,10 @@ CREATE TABLE if not exists partita (
         ON DELETE NO ACTION ON UPDATE CASCADE,
     CONSTRAINT partita_campionato FOREIGN KEY (ID_campionato)
         REFERENCES campionato (ID)
-        ON DELETE NO ACTION ON UPDATE CASCADE
+        ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-CREATE TABLE if not exists formazione (
+CREATE TABLE IF NOT EXISTS formazione (
     anno SMALLINT UNSIGNED NOT NULL,
     numero SMALLINT UNSIGNED NOT NULL,
     ID_squadra INTEGER NOT NULL,
@@ -75,14 +75,14 @@ CREATE TABLE if not exists formazione (
         ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT formazione_giocatore FOREIGN KEY (ID_giocatore)
         REFERENCES giocatore (ID)
-        ON DELETE CASCADE ON UPDATE CASCADE
+        ON DELETE NO ACTION ON UPDATE CASCADE
 );
 
-CREATE TABLE if not exists segna (
+CREATE TABLE IF NOT EXISTS segna (
     minuto SMALLINT UNSIGNED NOT NULL,
     ID_giocatore INTEGER NOT NULL,
     ID_partita INTEGER NOT NULL,
-    tipo char(3) NULL,
+    punti TINYINT NOT NULL DEFAULT 1,
     PRIMARY KEY (minuto , ID_giocatore , ID_partita),
     CONSTRAINT segna_giocatore FOREIGN KEY (ID_giocatore)
         REFERENCES giocatore (ID)
@@ -92,14 +92,14 @@ CREATE TABLE if not exists segna (
         ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-CREATE TABLE if not exists direzione (
+CREATE TABLE IF NOT EXISTS direzione (
     ID_partita INTEGER NOT NULL,
-    CF_arbitro CHAR(16) NOT NULL,
-    PRIMARY KEY (ID_partita , CF_arbitro),
+    ID_arbitro INTEGER NOT NULL,
+    PRIMARY KEY (ID_partita , ID_arbitro),
     CONSTRAINT direzione_partita FOREIGN KEY (ID_partita)
         REFERENCES partita (ID)
         ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT direzione_arbitro FOREIGN KEY (CF_arbitro)
-        REFERENCES arbitro (CF)
+    CONSTRAINT direzione_arbitro FOREIGN KEY (ID_arbitro)
+        REFERENCES arbitro (ID)
         ON DELETE NO ACTION ON UPDATE CASCADE
 );
