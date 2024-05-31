@@ -168,7 +168,7 @@ public class JDBC_Example {
             //andrebbero gestiti in maniera opportuna!
             logException(ex);
         } finally {
-            //ci assicuriamo che allòa fine del programma la connessione venga chiusa
+            //ci assicuriamo che alla fine del programma la connessione venga chiusa
             try {
                 disconnect();
             } catch (ApplicationException ex) {

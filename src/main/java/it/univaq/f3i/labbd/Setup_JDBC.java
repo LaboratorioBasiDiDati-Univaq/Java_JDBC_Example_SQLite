@@ -147,7 +147,7 @@ public class Setup_JDBC {
             System.out.println("\t\tTransazioni: " + databaseMetaData.supportsTransactions());
             System.out.println("\t\tGet generated keys: " + databaseMetaData.supportsGetGeneratedKeys());
             //
-            System.out.println("Struttura nel Database corrente (" + connection.getCatalog() + "): ");
+            System.out.println("Struttura del Database corrente (" + connection.getCatalog() + "): ");
             try ( ResultSet resultSet = databaseMetaData.getTables(null, null, null, new String[]{"TABLE"})) {
                 while (resultSet.next()) {
                     String tableName = resultSet.getString("TABLE_NAME");

@@ -66,14 +66,14 @@ public class Query_JDBC {
         try ( Statement s = connection.createStatement(); //attenzione: in generale sarebbe meglio scrivere le stringhe di SQL
                 //sotto forma di costanti (ad esempio a livello classe) e riferirvisi 
                 //solo nel codice, per una migliore mantenibilità dei sorgenti
-                  ResultSet rs = s.executeQuery("select g.cognome,g.nome, s.nome as squadra, count(*) as punti from\n"
+                  ResultSet rs = s.executeQuery("select g.cognome,g.nome, s.nome as squadra, sum(m.punti) as punti from\n"
                         + "giocatore g \n"
                         + "	join segna m on (m.ID_giocatore=g.ID)\n"
                         + "	join partita p on (p.ID=m.ID_partita) \n"
                         + "	join campionato c on (p.ID_campionato=c.ID)\n"
                         + "	join formazione f on (f.ID_giocatore=g.ID)\n"
                         + "	join squadra s on (s.ID=f.ID_squadra)\n"
-                        + "where (c.anno=f.anno) and c.anno=" + anno + " \n"
+                        + "where (c.anno=f.anno) and c.anno=" + anno + " and m.punti>0\n"
                         + "group by g.cognome,g.nome, s.nome\n"
                         + "order by punti desc;"); //PERICOLOSO! Usiamo sempre i PreparedStatement!
                 ) { //iteriamo nella lista di record risultanti
