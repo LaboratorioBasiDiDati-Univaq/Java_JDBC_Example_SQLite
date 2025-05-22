@@ -1,10 +1,12 @@
 DELIMITER ;
 
-DELETE FROM partita;
-DELETE FROM formazione;
-DELETE FROM direzione;
-DELETE FROM squadra;
+DELETE FROM iscritta;
+DELETE FROM gioca;
 DELETE FROM segna;
+DELETE FROM formazione;
+DELETE FROM dirige;
+DELETE FROM partita;
+DELETE FROM squadra;
 DELETE FROM giocatore;
 DELETE FROM campionato;
 DELETE FROM arbitro;
@@ -17,8 +19,8 @@ INSERT INTO `campionato`(anno,nome)
 VALUES(2020,"campionato di calcio serie B");
 
 INSERT INTO `arbitro`
-(`ID`,`nome`,`cognome`)
-VALUES (1,"Pinco","Arbitro");
+(`ID`,`CF`,`nome`,`cognome`)
+VALUES (1,"ABCDEF11G22H333I","Pinco","Arbitro");
 
 INSERT INTO `giocatore`
 (`ID`,`nome`,`cognome`,`dataNascita`,`luogoNascita`)
@@ -80,6 +82,18 @@ INSERT INTO `formazione`
 (`ID_giocatore`,`ID_squadra`,`anno`,`numero`)
 VALUES (1,2,2019,40);
 
+INSERT INTO `iscritta`
+(`ID_campionato`,`ID_squadra`)
+VALUES (1,1);
+
+INSERT INTO `iscritta`
+(`ID_campionato`,`ID_squadra`)
+VALUES (1,2);
+
+INSERT INTO `iscritta`
+(`ID_campionato`,`ID_squadra`)
+VALUES (1,3);
+
 INSERT INTO `partita`
 (`ID`,`data`,`ID_campionato`,`ID_luogo`,`ID_squadra_1`,`ID_squadra_2`,`punti_squadra_1`,`punti_squadra_2`)
 VALUES (1,"2020-09-24 16:30:00",1,1,1,2,2,1);
@@ -91,6 +105,22 @@ VALUES (2,"2020-09-22 12:00:00",1,1,2,1);
 INSERT INTO `partita`
 (`ID`,`data`,`ID_campionato`,`ID_luogo`,`ID_squadra_1`,`ID_squadra_2`,`punti_squadra_1`,`punti_squadra_2`)
 VALUES (3,"2021-01-20 16:30:00",1,2,1,2,0,10);
+
+INSERT INTO `gioca`
+(`ID_giocatore`,`ID_partita`,`minuto_iniziale`,`minuto_finale`)
+VALUES (1,1,10,90);
+
+INSERT INTO `gioca`
+(`ID_giocatore`,`ID_partita`,`minuto_iniziale`,`minuto_finale`)
+VALUES (2,1,1,90);
+
+INSERT INTO `gioca`
+(`ID_giocatore`,`ID_partita`,`minuto_iniziale`,`minuto_finale`)
+VALUES (3,1,1,90);
+
+INSERT INTO `gioca`
+(`ID_giocatore`,`ID_partita`,`minuto_iniziale`,`minuto_finale`)
+VALUES (2,3,15,45);
 
 INSERT INTO `segna`
 (`ID_giocatore`,`ID_partita`,`minuto`)
@@ -112,10 +142,10 @@ INSERT INTO `segna`
 (`ID_giocatore`,`ID_partita`,`minuto`)
 VALUES (2,3,28);
 
-INSERT INTO `direzione`
+INSERT INTO `dirige`
 (`ID_arbitro`,`ID_partita`)
 VALUES (1,1);
 
-INSERT INTO `direzione`
+INSERT INTO `dirige`
 (`ID_arbitro`,`ID_partita`)
 VALUES (1,2);
