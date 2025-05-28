@@ -9,7 +9,7 @@ import java.sql.Statement;
 import java.sql.Types;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.time.LocalDateTime;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -63,7 +63,7 @@ public class Query_JDBC {
         System.out.println("CLASSIFICA MARCATORI " + anno + "-----------------------");
         //eseguiamo la query
         //notare che creiamo lo statement e il resultset in un try-with-resources
-        try ( Statement s = connection.createStatement(); //attenzione: in generale sarebbe meglio scrivere le stringhe di SQL
+        try (Statement s = connection.createStatement(); //attenzione: in generale sarebbe meglio scrivere le stringhe di SQL
                 //sotto forma di costanti (ad esempio a livello classe) e riferirvisi 
                 //solo nel codice, per una migliore mantenibilità dei sorgenti
                   ResultSet rs = s.executeQuery("select g.cognome,g.nome, s.nome as squadra, sum(m.punti) as punti from\n"
@@ -96,7 +96,7 @@ public class Query_JDBC {
         //un oggetto-formattatore per le date
         DateFormat df = new SimpleDateFormat("dd/MM/yyyy");
         //precompiliamo la query            
-        try ( PreparedStatement s = connection.prepareStatement("select s1.nome as squadra1,s2.nome as squadra2,p.data\n"
+        try (PreparedStatement s = connection.prepareStatement("select s1.nome as squadra1,s2.nome as squadra2,p.data\n"
                 + "from campionato c join partita p on (p.ID_campionato=c.ID) join squadra s1 on (p.ID_squadra_1 = s1.ID) join squadra s2 on (p.ID_squadra_2 = s2.ID)\n"
                 + "where c.anno=?\n"
                 + "order by p.data asc;")) {
@@ -104,7 +104,7 @@ public class Query_JDBC {
             s.setInt(1, anno);
             //eseguiamo la query
             //questo try-with-resources senza catch garantisce la chisura di rs al termine del suo uso
-            try ( ResultSet rs = s.executeQuery()) {
+            try (ResultSet rs = s.executeQuery()) {
                 //iteriamo nella lista di record risultanti
                 while (rs.next()) {
                     //stampiamo le varie colonne di ciascun record, prelevandole col tipo corretto
@@ -120,15 +120,23 @@ public class Query_JDBC {
     }
 
     //ESEMPIO 3: esecuzione di query di inserimento
-    public void inserisci_partita(Date data, int ID_campionato, int ID_squadra_1, int ID_squadra_2, int ID_luogo) throws ApplicationException {
+    //versione con le vecchie classi Calendar e Date    
+    //public void inserisci_partita(Date data, int ID_campionato, int ID_squadra_1, int ID_squadra_2, int ID_luogo) throws ApplicationException {
+    //versione con le nuove classi java.time
+    public void inserisci_partita(LocalDateTime data, int ID_campionato, int ID_squadra_1, int ID_squadra_2, int ID_luogo) throws ApplicationException {
         System.out.println("INSERIMENTO PARTITA " + ID_squadra_1 + "-" + ID_squadra_2 + "---------------------------");
         //precompiliamo la query       
         //il parametro extra dice al driver dove trovare la chiave auto-generata del nuovo record
-        try ( PreparedStatement s = connection.prepareStatement("insert into partita(ID_campionato, data,ID_squadra_1,ID_squadra_2,ID_luogo) values(?,?,?,?,?)", new String[]{"ID"})) {
+        try (PreparedStatement s = connection.prepareStatement("insert into partita(ID_campionato, data,ID_squadra_1,ID_squadra_2,ID_luogo) values(?,?,?,?,?)", new String[]{"ID"})) {
             //impostiamo i parametri della query
             s.setInt(1, ID_campionato);
+            //versione con le nuove classi java.time
+            //il tipo MySQL DATETIME della colonna viene genericamente impostato usando un setTimestamp nel JDBC
+            //la java.time.LocalDateTime va convertita in java.sql.Timestamp (data+ora) o java.sql.Date (solo data)            
+            s.setTimestamp(2,java.sql.Timestamp.valueOf(data)); 
+            //versione con le vecchie classi Calendar e Date                
             //la java.util.Date va convertita in java.sql.Timestamp (data+ora) o java.sql.Date (solo data)
-            s.setTimestamp(2, new java.sql.Timestamp(data.getTime()));
+            //s.setTimestamp(2, new java.sql.Timestamp(data));
             s.setInt(3, ID_squadra_1);
             s.setInt(4, ID_squadra_2);
             s.setInt(5, ID_luogo);
@@ -137,7 +145,7 @@ public class Query_JDBC {
             //stampiamo il numero di record inseriti
             System.out.println("record inseriti: " + affected);
             //volendo estrarre la chiave auto-generata per i record inseriti...
-            try ( ResultSet rs = s.getGeneratedKeys()) {
+            try (ResultSet rs = s.getGeneratedKeys()) {
                 while (rs.next()) {
                     //stampiamo le chiavi (i record hanno tante colonne quante sono 
                     //le colonne specificate nel secondo parametro della prepareStatement)
@@ -153,7 +161,7 @@ public class Query_JDBC {
     public void aggiorna_partita(int ID_partita, int punti_squadra_1, int punti_squadra_2) throws ApplicationException {
         System.out.println("AGGIORNAMENTO PARTITA " + ID_partita + "-------------------------");
         //precompiliamo la query       
-        try ( PreparedStatement s = connection.prepareStatement("update partita set punti_squadra_1=?, punti_squadra_2=? where ID=?")) {
+        try (PreparedStatement s = connection.prepareStatement("update partita set punti_squadra_1=?, punti_squadra_2=? where ID=?")) {
             //impostiamo i parametri della query
             s.setInt(1, punti_squadra_1);
             s.setInt(2, punti_squadra_2);
@@ -173,14 +181,14 @@ public class Query_JDBC {
         //precompiliamo la chiamata a procedura (con parametro)  
         //notare la sintassi speciale da usare per le chiamate a procedura
         if (supports_procedures) {
-            try ( CallableStatement s = connection.prepareCall("{call formazione(?,?)}")) {
+            try (CallableStatement s = connection.prepareCall("{call formazione(?,?)}")) {
                 //impostiamo i parametri della chiamata
                 s.setInt(1, ID_squadra);
                 s.setInt(2, anno);
                 //eseguiamo la chiamata
                 s.execute();
                 //leggiamo la tabella generata dalla chiamata
-                try ( ResultSet rs = s.getResultSet()) {
+                try (ResultSet rs = s.getResultSet()) {
                     while (rs.next()) {
                         System.out.print(rs.getString(1));
                         System.out.print("\t" + rs.getString(2));
@@ -200,7 +208,7 @@ public class Query_JDBC {
         System.out.println("SQUADRA GIOCATORE " + ID_giocatore + " NEL " + anno + "--------------------");
         //precompiliamo la chiamata a procedura (con parametri)     
         if (supports_procedures) {
-            try ( CallableStatement s = connection.prepareCall("{call squadra_appartenenza(?,?,?)}")) {
+            try (CallableStatement s = connection.prepareCall("{call squadra_appartenenza(?,?,?)}")) {
                 //impostiamo i parametri IN della chiamata
                 s.setInt(1, ID_giocatore);
                 s.setInt(2, anno);
@@ -224,7 +232,7 @@ public class Query_JDBC {
         System.out.println("CONTROLLO PARTITA " + ID_partita + "-----------------------------");
         if (supports_procedures && supports_function_calls) {
             //precompiliamo la chiamata a funzione
-            try ( CallableStatement s = connection.prepareCall("{?  = call controlla_partita(?)}")) {
+            try (CallableStatement s = connection.prepareCall("{?  = call controlla_partita(?)}")) {
                 //impostiamo i parametri della chiamata
                 s.setInt(2, ID_partita);
                 //registriamo il valore della funzione come fosse un parametro OUT della chiamata (con tipo)

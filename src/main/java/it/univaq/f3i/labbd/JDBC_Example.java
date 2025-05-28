@@ -1,9 +1,9 @@
 package it.univaq.f3i.labbd;
 
 import java.sql.SQLException;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 
 /**
  *
@@ -59,19 +59,26 @@ public class JDBC_Example {
     //eseguiamo tutti i test in sequenza
     public void runQueries() throws ApplicationException {
         System.out.println("\n**** TEST SENZA TRANSAZIONE *************************");
-        Calendar cal = Calendar.getInstance();
+        //Calendar cal = Calendar.getInstance(); //versione con le vecchie classi Calendar e Date
+        LocalDateTime cal = null;//versione con le nuove classi java.time
         try {
             //prepariamo una data appartenente al calendario 2020
-            SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm");
-            cal.setTime(sdf.parse("30/9/2020 16:15"));
-        } catch (ParseException ex) {
+            //versione con le vecchie classi Calendar e Date
+            //SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm");            
+            //cal.setTime(sdf.parse("30/9/2020 16:15"));
+            //} catch (ParseException ex) {            
+            //versione con le nuove classi java.time
+            DateTimeFormatter dtf = DateTimeFormatter.ofPattern("d/M/yyyy H:m");
+            cal = LocalDateTime.parse("30/9/2020 16:15", dtf);
+        } catch (DateTimeParseException ex) {
             //log degli errori originabili dal parsing della data
             //andrebbero gestiti in maniera opportuna!
             throw new ApplicationException("Errore interno", ex);
         }
         query_module.classifica_marcatori(2020);
         query_module.calendario_campionato(2020);
-        query_module.inserisci_partita(cal.getTime(), 1, 1, 2, 1);
+        //query_module.inserisci_partita(cal.getTime(), 1, 1, 2, 1);//versione con le vecchie classi Calendar e Date
+        query_module.inserisci_partita(cal, 1, 1, 2, 1);//versione con le nuove classi java.time
         query_module.aggiorna_partita(1, 5, 6);
         query_module.formazione(1, 2020);
         query_module.squadra_appartenenza(1, 2020);
@@ -85,12 +92,18 @@ public class JDBC_Example {
     public void runQueries_withinTransaction() throws ApplicationException {
         System.out.println("\n**** TEST CON TRANSAZIONE ***************************");
         if (setup_module.supports_transactions()) {
-            Calendar cal = Calendar.getInstance();
+            //Calendar cal = Calendar.getInstance(); //versione con le vecchie classi Calendar e Date
+            LocalDateTime cal = null;//versione con le nuove classi java.time
             try {
                 //prepariamo una data appartenente al calendario 2020
-                SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm");
-                cal.setTime(sdf.parse("30/9/2020 16:15"));
-            } catch (ParseException ex) {
+                //versione con le vecchie classi Calendar e Date
+                //SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm");
+                //cal.setTime(sdf.parse("30/9/2020 16:15"));
+                //versione con le nuove classi java.time
+                DateTimeFormatter dtf = DateTimeFormatter.ofPattern("d/M/yyyy H:m");
+                cal = LocalDateTime.parse("30/9/2020 16:15", dtf);
+                //} catch (ParseException ex) {
+            } catch (DateTimeParseException ex) {
                 //log degli errori originabili dal parsing della data
                 //andrebbero gestiti in maniera opportuna!
                 throw new ApplicationException("Errore interno", ex);
@@ -109,9 +122,11 @@ public class JDBC_Example {
                 //a questo punto il database aprirà una transazione automatica
                 //al primo statement che gli viene sottoposto, ma non ne eseguirà
                 //il commit
-                query_module.inserisci_partita(cal.getTime(), 1, 1, 2, 1);
+                //query_module.inserisci_partita(cal.getTime(), 1, 1, 2, 1); //versione con le vecchie classi Calendar e Date
+                query_module.inserisci_partita(cal, 1, 1, 2, 1); //versione con le nuove classi java.time
                 //generiamo volontariamente un'eccezione
-                query_module.inserisci_partita(cal.getTime(), 1, 1, 2, 1);
+                //query_module.inserisci_partita(cal.getTime(), 1, 1, 2, 1); //versione con le vecchie classi Calendar e Date
+                query_module.inserisci_partita(cal, 1, 1, 2, 1); //versione con le nuove classi java.time
                 //ora, se tutto è andato bene, finalizziamo le modifiche
                 System.out.println("COMMIT DELLE OPERAZIONI ****************************");
                 try {

@@ -1,6 +1,6 @@
 DELIMITER ;
 -- modifiche necessarie rispetto alla versione MySQL:
--- AUTO_INCREMENT -> AUTOINCREMENT (rigorisamente dopo PRIMARY KEY)
+-- AUTO_INCREMENT -> AUTOINCREMENT (rigorosamente dopo PRIMARY KEY)
 -- le PRIMARY KEY non possono essere UNSIGNED
 
 DROP TABLE IF EXISTS iscritta;
